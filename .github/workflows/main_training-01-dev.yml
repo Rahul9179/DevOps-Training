@@ -8,6 +8,7 @@ on:
 
 env:
   PROJECT_PATH: './DevOpsTraining/DevOpsTraining/DevOpsTraining.csproj'
+  TEST_PROJECT_PATH: './DevOpsTraining/DevOpsTraining.Tests/DevOpsTraining.Tests.csproj'
 
 jobs:
   build:
@@ -30,6 +31,9 @@ jobs:
       - name: Build
         run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
 
+      - name: Test
+        run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --verbosity normal
+        
       - name: Publish
         run: dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --no-build --output ./publish
 
