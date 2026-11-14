@@ -6,6 +6,10 @@ on:
       - 'main'
   workflow_dispatch:
 
+env:
+  PROJECT_PATH: './DevOpsTraining/DevOpsTraining/DevOpsTraining.csproj'
+  TEST_PROJECT_PATH: './DevOpsTraining/DevOpsTraining/DevOpsTraining.Tests.csproj'
+
 jobs:
   build:
     runs-on: ubuntu-26.04
@@ -22,13 +26,16 @@ jobs:
           dotnet-version: '10.x'
 
       - name: Restore dependencies
-        run: dotnet restore
+        run: dotnet restore ${{ env.PROJECT_PATH }}
 
       - name: Build
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --verbosity normal
 
       - name: Publish
-        run: dotnet publish --configuration Release --no-build --output ./publish
+        run: dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --no-build --output ./publish
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v7
