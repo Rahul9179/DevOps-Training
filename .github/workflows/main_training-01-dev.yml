@@ -32,7 +32,7 @@ jobs:
       - name: Build
         run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
 
-      - name: Test (Require >= 70% Pass Rate)
+            - name: Test (Require >= 70% Pass Rate)
         run: |
           dotnet test ${{ env.TEST_PROJECT_PATH }} \
             --configuration Release \
@@ -42,12 +42,21 @@ jobs:
 
           python3 - << 'EOF'
           import xml.etree.ElementTree as ET
+          import glob
           import sys
 
-          tree = ET.parse('./TestResults/test_results.trx')
+          trx_files = glob.glob('./TestResults/**/*.trx', recursive=True)
+          if not trx_files:
+              print("ERROR: No .trx test report found. The test project may have failed to build.")
+              sys.exit(1)
+
+          tree = ET.parse(trx_files[0])
           root = tree.getroot()
-          ns = {'ns': 'http://microsoft.com'}
-          counters = root.find('.//ns:ResultSummary/ns:Counters', ns)
+
+          counters = next((elem for elem in root.iter() if elem.tag.endswith('Counters')), None)
+          if counters is None:
+              print("ERROR: Could not find <Counters> in test report.")
+              sys.exit(1)
 
           total = int(counters.attrib.get('total', 0))
           executed = int(counters.attrib.get('executed', 0))
