@@ -9,6 +9,7 @@ on:
 env:
   PROJECT_PATH: './DevOpsTraining/DevOpsTraining/DevOpsTraining.csproj'
   TEST_PROJECT_PATH: './DevOpsTraining/DevOpsTraining.Tests/DevOpsTraining.Tests.csproj'
+  MIN_PASS_PERCENT: 70
 
 jobs:
   build:
@@ -31,9 +32,45 @@ jobs:
       - name: Build
         run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
 
-      - name: Test
-        run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --verbosity normal
-        
+      - name: Test (Require >= 70% Pass Rate)
+        run: |
+          dotnet test ${{ env.TEST_PROJECT_PATH }} \
+            --configuration Release \
+            --verbosity normal \
+            --logger "trx;LogFileName=test_results.trx" \
+            --results-directory ./TestResults || true
+
+          python3 - << 'EOF'
+          import xml.etree.ElementTree as ET
+          import sys
+
+          tree = ET.parse('./TestResults/test_results.trx')
+          root = tree.getroot()
+          ns = {'ns': 'http://microsoft.com'}
+          counters = root.find('.//ns:ResultSummary/ns:Counters', ns)
+
+          total = int(counters.attrib.get('total', 0))
+          executed = int(counters.attrib.get('executed', 0))
+          passed = int(counters.attrib.get('passed', 0))
+          failed = int(counters.attrib.get('failed', 0))
+
+          if executed == 0:
+              print("ERROR: No tests were executed.")
+              sys.exit(1)
+
+          pass_rate = (passed / executed) * 100
+          min_rate = float("${{ env.MIN_PASS_PERCENT }}")
+
+          print(f"Test Summary -> Total: {total}, Executed: {executed}, Passed: {passed}, Failed: {failed}")
+          print(f"Pass Rate: {pass_rate:.2f}% (Required: {min_rate:.2f}%)")
+
+          if pass_rate < min_rate:
+              print(f"FAILED: Pass rate {pass_rate:.2f}% is below the {min_rate:.2f}% threshold.")
+              sys.exit(1)
+
+          print("PASSED: Test threshold met. Proceeding to publish.")
+          EOF
+
       - name: Publish
         run: dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --no-build --output ./publish
 
